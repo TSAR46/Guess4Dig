@@ -1,115 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Guess4Dig</title>
+    <title>💕 Guess4Dig 💕</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
     <style>
         body {
-            margin: 0;
+            background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb);
+            min-height: 100vh;
             font-family: 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            color: white;
         }
 
-        h2 {
-            text-align: center;
-            margin-top: 20px;
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            transition: 0.3s ease;
+        }
+
+        .active-player {
+            border: 3px solid #ff4da6;
+            box-shadow: 0 0 20px rgba(255, 77, 166, 0.7);
+        }
+
+        .history-box {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .guess-item {
+            background: rgba(255,255,255,0.4);
+            padding: 8px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+
+        .title {
             font-size: 32px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
         }
 
         #status {
-            text-align: center;
-            margin-bottom: 20px;
             font-weight: bold;
             font-size: 18px;
+            margin-bottom: 20px;
         }
 
-        .container {
-            flex: 1;
-            display: flex;
+        .btn-cute {
+            background: #ff4da6;
+            border: none;
+            border-radius: 30px;
+            padding: 8px 20px;
+            color: white;
+            font-weight: bold;
         }
 
-        .player {
-            flex: 1;
-            padding: 40px;
-            backdrop-filter: blur(10px);
-            background: rgba(255,255,255,0.1);
-            text-align: center;
-        }
-
-        .divider {
-            width: 2px;
-            background: rgba(255,255,255,0.3);
+        .btn-cute:hover {
+            background: #ff1a8c;
         }
 
         input {
-            padding: 12px;
-            font-size: 18px;
-            width: 120px;
-            border-radius: 8px;
-            border: none;
+            border-radius: 20px !important;
             text-align: center;
-        }
-
-        button {
-            padding: 12px 20px;
-            margin-left: 10px;
-            border-radius: 8px;
-            border: none;
-            background: #00c6ff;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #0072ff;
-        }
-
-        .history {
-            margin-top: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .guess {
-            background: rgba(0,0,0,0.3);
-            padding: 8px;
-            margin: 5px 0;
-            border-radius: 6px;
-        }
-
-        .disabled {
-            opacity: 0.4;
         }
     </style>
 </head>
-<body>
+<body class="d-flex flex-column align-items-center justify-content-center">
 
-<h2>🎯 Guess4Dig</h2>
-<p id="status">Connecting...</p>
+<div class="container text-center">
 
-<div class="container">
+    <div class="title mb-3">💖 Guess The Secret Number 💖</div>
+    <div id="status" class="text-dark">Connecting...</div>
 
-    <div class="player" id="player1">
-        <h3>Player 1</h3>
-        <input type="text" id="input1" maxlength="4">
-        <button onclick="sendGuess('input1')">Guess</button>
-        <div class="history" id="history1"></div>
+    <div class="row g-4">
+
+        <!-- Player 1 -->
+        <div class="col-md-6">
+            <div id="player1Card" class="glass-card">
+                <h4>👑 Player 1</h4>
+                <div class="input-group justify-content-center mt-3">
+                    <input type="text" id="input1" maxlength="4" class="form-control w-50">
+                    <button class="btn btn-cute ms-2" onclick="sendGuess('input1')">Guess 💌</button>
+                </div>
+                <div id="history1" class="history-box"></div>
+            </div>
+        </div>
+
+        <!-- Player 2 -->
+        <div class="col-md-6">
+            <div id="player2Card" class="glass-card">
+                <h4>🌸 Player 2</h4>
+                <div class="input-group justify-content-center mt-3">
+                    <input type="text" id="input2" maxlength="4" class="form-control w-50">
+                    <button class="btn btn-cute ms-2" onclick="sendGuess('input2')">Guess 💌</button>
+                </div>
+                <div id="history2" class="history-box"></div>
+            </div>
+        </div>
+
     </div>
-
-    <div class="divider"></div>
-
-    <div class="player" id="player2">
-        <h3>Player 2</h3>
-        <input type="text" id="input2" maxlength="4">
-        <button onclick="sendGuess('input2')">Guess</button>
-        <div class="history" id="history2"></div>
-    </div>
-
 </div>
 
 <script>
@@ -120,13 +118,26 @@
     let player2Id = null;
 
     function setTurn(currentTurn) {
-        if (socket.id === currentTurn) {
-            status.innerText = "🔥 Your Turn";
-            enableInputs(true);
-        } else {
-            status.innerText = "⏳ Opponent's Turn";
-            enableInputs(false);
+        const isMyTurn = socket.id === currentTurn;
+
+        document.getElementById("player1Card").classList.remove("active-player");
+        document.getElementById("player2Card").classList.remove("active-player");
+
+        if (socket.id === player1Id && isMyTurn) {
+            document.getElementById("player1Card").classList.add("active-player");
         }
+
+        if (socket.id === player2Id && isMyTurn) {
+            document.getElementById("player2Card").classList.add("active-player");
+        }
+
+        if (isMyTurn) {
+            status.innerText = "💘 Your Turn";
+        } else {
+            status.innerText = "⏳ Waiting for your love to guess...";
+        }
+
+        enableInputs(isMyTurn);
     }
 
     function enableInputs(enable) {
@@ -137,7 +148,7 @@
     }
 
     socket.on("waiting", () => {
-        status.innerText = "Waiting for second player...";
+        status.innerText = "Waiting for your partner to join 💕";
     });
 
     socket.on("startGame", (data) => {
@@ -148,8 +159,8 @@
 
     socket.on("guessResult", (data) => {
         const div = document.createElement("div");
-        div.className = "guess";
-        div.innerText = `${data.guess} → ${data.correctCount} correct`;
+        div.className = "guess-item";
+        div.innerText = `${data.guess} → ${data.correctCount} correct 💖`;
 
         if (data.player === player1Id) {
             document.getElementById("history1").appendChild(div);
@@ -164,9 +175,9 @@
 
     socket.on("gameOver", (data) => {
         if (data.winner === socket.id) {
-            status.innerText = "🎉 You Win!";
+            status.innerText = "🎉 You Win! Time for a kiss 😘";
         } else {
-            status.innerText = "😢 You Lose!";
+            status.innerText = "😢 You Lose! Still cute though 💕";
         }
         enableInputs(false);
     });
@@ -176,7 +187,7 @@
         const guess = input.value;
 
         if (!/^\d{4}$/.test(guess)) {
-            alert("Enter valid 4-digit number");
+            alert("Enter a valid 4-digit number 💕");
             return;
         }
 
