@@ -1,32 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>2 Player Guess Game</title>
+    <title>Turn-Based Guess Game</title>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-
     <style>
-        body {
-            font-family: Arial;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        body { font-family: Arial; margin: 0; height: 100vh; display: flex; flex-direction: column; }
+        h2 { text-align: center; margin-top: 20px; }
+        #status { text-align: center; margin-bottom: 20px; font-weight: bold; }
 
-        h2 {
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        #status {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .container {
-            flex: 1;
-            display: flex;
-        }
+        .container { flex: 1; display: flex; }
 
         .player {
             flex: 1;
@@ -36,59 +18,37 @@
 
         .divider {
             width: 3px;
-            background-color: black;
+            background: black;
         }
 
-        input {
-            padding: 10px;
-            font-size: 18px;
-            width: 120px;
-            text-align: center;
-        }
+        input { padding: 10px; font-size: 18px; width: 120px; text-align: center; }
+        button { padding: 10px 20px; margin-left: 10px; cursor: pointer; }
 
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin-left: 10px;
-            cursor: pointer;
-        }
+        .disabled { opacity: 0.4; }
 
-        .history {
-            margin-top: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .guess {
-            margin: 5px 0;
-        }
+        .history { margin-top: 20px; max-height: 300px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-<h2>4 Digit Guess Game</h2>
+<h2>Turn-Based 4 Digit Guess Game</h2>
 <p id="status">Connecting...</p>
 
 <div class="container">
-    
-    <!-- Player 1 Section -->
+
     <div class="player" id="player1">
         <h3>Player 1</h3>
-        <input type="text" id="guessInput1" maxlength="4" placeholder="Enter guess">
-        <button onclick="sendGuess('guessInput1')">Submit</button>
-
+        <input type="text" id="input1" maxlength="4">
+        <button onclick="sendGuess('input1')">Submit</button>
         <div class="history" id="history1"></div>
     </div>
 
-    <!-- Divider -->
     <div class="divider"></div>
 
-    <!-- Player 2 Section -->
     <div class="player" id="player2">
         <h3>Player 2</h3>
-        <input type="text" id="guessInput2" maxlength="4" placeholder="Enter guess">
-        <button onclick="sendGuess('guessInput2')">Submit</button>
-
+        <input type="text" id="input2" maxlength="4">
+        <button onclick="sendGuess('input2')">Submit</button>
         <div class="history" id="history2"></div>
     </div>
 
@@ -98,30 +58,57 @@
     const socket = io();
     const status = document.getElementById("status");
 
+    let player1Id = null;
+    let player2Id = null;
+
+    function setTurn(currentTurn) {
+        if (socket.id === currentTurn) {
+            status.innerText = "Your Turn";
+            enableMySide(true);
+        } else {
+            status.innerText = "Opponent's Turn";
+            enableMySide(false);
+        }
+    }
+
+    function enableMySide(enable) {
+        const isPlayer1 = socket.id === player1Id;
+
+        const input1 = document.getElementById("input1");
+        const input2 = document.getElementById("input2");
+
+        input1.disabled = !enable || !isPlayer1;
+        input2.disabled = !enable || isPlayer1;
+
+        document.getElementById("player1").classList.toggle("disabled", !isPlayer1 && enable);
+        document.getElementById("player2").classList.toggle("disabled", isPlayer1 && enable);
+    }
+
     socket.on("waiting", () => {
-        status.innerText = "Waiting for another player...";
+        status.innerText = "Waiting for second player...";
     });
 
-    socket.on("startGame", () => {
-        status.innerText = "Game Started!";
+    socket.on("startGame", (data) => {
+        player1Id = data.player1;
+        player2Id = data.player2;
+        setTurn(data.currentTurn);
     });
 
     socket.on("guessResult", (data) => {
+        const message = `Guessed ${data.guess} → ${data.correctCount} correct`;
 
-        const message = 
-            `Guessed ${data.guess} → ${data.correctCount} digits correct`;
-
-        // Show guess on both sides
         const div1 = document.createElement("div");
-        div1.className = "guess";
         div1.innerText = message;
 
         const div2 = document.createElement("div");
-        div2.className = "guess";
         div2.innerText = message;
 
         document.getElementById("history1").appendChild(div1);
         document.getElementById("history2").appendChild(div2);
+    });
+
+    socket.on("turnChanged", (data) => {
+        setTurn(data.currentTurn);
     });
 
     socket.on("gameOver", (data) => {
@@ -130,10 +117,10 @@
         } else {
             status.innerText = "😢 You Lose!";
         }
+        enableMySide(false);
     });
 
     function sendGuess(inputId) {
-
         const input = document.getElementById(inputId);
         const guess = input.value;
 
