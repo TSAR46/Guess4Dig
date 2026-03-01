@@ -3,7 +3,6 @@
 <head>
     <title>💕 Love Guess Duel 💕</title>
 
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -15,29 +14,28 @@
             font-family: 'Segoe UI', sans-serif;
         }
 
-        .title {
-            font-size: 34px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
-        }
-
         .glass-card {
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(255,255,255,0.25);
             backdrop-filter: blur(15px);
             border-radius: 20px;
             padding: 30px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-            transition: 0.3s ease;
         }
 
         .active-player {
             border: 3px solid #ff4da6;
-            box-shadow: 0 0 25px rgba(255, 77, 166, 0.8);
+            box-shadow: 0 0 20px rgba(255,77,166,0.7);
+        }
+
+        .btn-cute {
+            background: #ff4da6;
+            border-radius: 30px;
+            color: white;
+            font-weight: bold;
         }
 
         .history-box {
-            max-height: 250px;
+            max-height: 200px;
             overflow-y: auto;
             margin-top: 15px;
         }
@@ -45,37 +43,20 @@
         .guess-item {
             background: rgba(255,255,255,0.5);
             padding: 8px;
-            border-radius: 12px;
-            margin-bottom: 8px;
-        }
-
-        .btn-cute {
-            background: #ff4da6;
-            border: none;
-            border-radius: 30px;
-            padding: 8px 20px;
-            color: white;
-            font-weight: bold;
-        }
-
-        .btn-cute:hover {
-            background: #ff1a8c;
-        }
-
-        input {
-            border-radius: 20px !important;
-            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 6px;
         }
 
         #status {
-            font-weight: bold;
             font-size: 18px;
+            font-weight: bold;
         }
 
-        .secret-text {
+        #secretDisplay {
+            font-size: 20px;
             font-weight: bold;
+            margin-top: 8px;
             color: #fff;
-            font-size: 18px;
         }
     </style>
 </head>
@@ -84,41 +65,27 @@
 
 <div class="container text-center">
 
-    <div class="title mb-3">💖 Secret Love Number Duel 💖</div>
-    <div id="status" class="text-dark mb-4">Connecting...</div>
+    <h2 class="text-white mb-3">💖 Secret Love Duel 💖</h2>
 
-    <div class="row g-4">
+    <div id="status" class="text-dark mb-2">Connecting...</div>
+    <div id="secretDisplay">Your Secret: ----</div>
 
-        <!-- Player 1 -->
+    <div class="row g-4 mt-3">
+
         <div class="col-md-6">
             <div id="player1Card" class="glass-card">
                 <h4>👑 Player 1</h4>
-                <div class="secret-text">
-                    Your Secret: <span id="secret1">----</span>
-                </div>
-
-                <div class="input-group justify-content-center mt-3">
-                    <input type="text" id="input1" maxlength="4" class="form-control w-50">
-                    <button class="btn btn-cute ms-2" onclick="sendGuess('input1')">Guess 💌</button>
-                </div>
-
+                <input type="text" id="input1" maxlength="4" class="form-control mt-3">
+                <button class="btn btn-cute mt-2" onclick="sendGuess('input1')">Guess 💌</button>
                 <div id="history1" class="history-box"></div>
             </div>
         </div>
 
-        <!-- Player 2 -->
         <div class="col-md-6">
             <div id="player2Card" class="glass-card">
                 <h4>🌸 Player 2</h4>
-                <div class="secret-text">
-                    Your Secret: <span id="secret2">----</span>
-                </div>
-
-                <div class="input-group justify-content-center mt-3">
-                    <input type="text" id="input2" maxlength="4" class="form-control w-50">
-                    <button class="btn btn-cute ms-2" onclick="sendGuess('input2')">Guess 💌</button>
-                </div>
-
+                <input type="text" id="input2" maxlength="4" class="form-control mt-3">
+                <button class="btn btn-cute mt-2" onclick="sendGuess('input2')">Guess 💌</button>
                 <div id="history2" class="history-box"></div>
             </div>
         </div>
@@ -139,20 +106,17 @@
 <script>
     const socket = io();
     const status = document.getElementById("status");
+    const secretDisplay = document.getElementById("secretDisplay");
 
     let player1Id = null;
     let player2Id = null;
 
     socket.on("waiting", () => {
-        status.innerText = "Waiting for your partner to join 💕";
+        status.innerText = "Waiting for your partner 💕";
     });
 
     socket.on("yourSecret", (data) => {
-        if (!player1Id || socket.id === player1Id) {
-            document.getElementById("secret1").innerText = data.secret;
-        } else {
-            document.getElementById("secret2").innerText = data.secret;
-        }
+        secretDisplay.innerText = "Your Secret: " + data.secret;
     });
 
     socket.on("startGame", (data) => {
@@ -182,11 +146,7 @@
 
         if (data.winner === socket.id) {
             document.getElementById("resultText").innerText = "🎉 You Win!!! 💖";
-            confetti({
-                particleCount: 200,
-                spread: 120,
-                origin: { y: 0.6 }
-            });
+            confetti({ particleCount: 200, spread: 120 });
         } else {
             document.getElementById("resultText").innerText = "💔 Better luck next time 💕";
         }
@@ -198,30 +158,13 @@
     function setTurn(currentTurn) {
         const isMyTurn = socket.id === currentTurn;
 
-        document.getElementById("player1Card").classList.remove("active-player");
-        document.getElementById("player2Card").classList.remove("active-player");
+        status.innerText = isMyTurn ? "💘 Your Turn" : "⏳ Opponent's Turn";
 
-        if (socket.id === player1Id && isMyTurn) {
-            document.getElementById("player1Card").classList.add("active-player");
-        }
+        document.getElementById("input1").disabled =
+            !(isMyTurn && socket.id === player1Id);
 
-        if (socket.id === player2Id && isMyTurn) {
-            document.getElementById("player2Card").classList.add("active-player");
-        }
-
-        if (isMyTurn) {
-            status.innerText = "💘 Your Turn";
-        } else {
-            status.innerText = "⏳ Waiting for your love to guess...";
-        }
-
-        enableInputs(isMyTurn);
-    }
-
-    function enableInputs(enable) {
-        const isPlayer1 = socket.id === player1Id;
-        document.getElementById("input1").disabled = !(enable && isPlayer1);
-        document.getElementById("input2").disabled = !(enable && !isPlayer1);
+        document.getElementById("input2").disabled =
+            !(isMyTurn && socket.id === player2Id);
     }
 
     function disableInputs() {
@@ -229,8 +172,8 @@
         document.getElementById("input2").disabled = true;
     }
 
-    function sendGuess(inputId) {
-        const input = document.getElementById(inputId);
+    function sendGuess(id) {
+        const input = document.getElementById(id);
         const guess = input.value;
 
         if (!/^\d{4}$/.test(guess)) {
