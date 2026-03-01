@@ -4,7 +4,6 @@ import random
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "secret!"
-
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 waiting_player = None
@@ -40,40 +39,50 @@ def handle_connect():
         socketio.emit("waiting", to=request.sid)
     else:
         game_id = waiting_player + "#" + request.sid
-        secret = generate_secret()
 
-        games[game_id] = {
-            "secret": secret,
-            "players": [waiting_player, request.sid],
-            "current_turn": waiting_player,
-            "active": True,
-        }
+        games[game_id] = create_new_game(waiting_player, request.sid)
 
         socketio.server.enter_room(waiting_player, game_id)
         join_room(game_id)
 
-        socketio.emit(
-            "startGame",
-            {
-                "player1": waiting_player,
-                "player2": request.sid,
-                "currentTurn": waiting_player,
-            },
-            room=game_id,
-        )
+        send_secrets(game_id)
 
         waiting_player = None
+
+def create_new_game(player1, player2):
+    return {
+        "player1": player1,
+        "player2": player2,
+        "player1_secret": generate_secret(),
+        "player2_secret": generate_secret(),
+        "current_turn": player1,
+        "active": True
+    }
+
+def send_secrets(game_id):
+    game = games[game_id]
+
+    socketio.emit("yourSecret", 
+        {"secret": game["player1_secret"]}, 
+        to=game["player1"])
+
+    socketio.emit("yourSecret", 
+        {"secret": game["player2_secret"]}, 
+        to=game["player2"])
+
+    socketio.emit("startGame", {
+        "player1": game["player1"],
+        "player2": game["player2"],
+        "currentTurn": game["current_turn"]
+    }, room=game_id)
 
 @socketio.on("makeGuess")
 def handle_guess(data):
     guess = data.get("guess")
 
-    if not guess or not guess.isdigit() or len(guess) != 4:
-        return
-
     game_id = None
     for g in games:
-        if request.sid in games[g]["players"]:
+        if request.sid in [games[g]["player1"], games[g]["player2"]]:
             game_id = g
             break
 
@@ -82,45 +91,53 @@ def handle_guess(data):
 
     game = games[game_id]
 
-    if not game["active"]:
+    if not game["active"] or game["current_turn"] != request.sid:
         return
 
-    if game["current_turn"] != request.sid:
-        return
-
-    correct_count = count_matches(game["secret"], guess)
-
-    socketio.emit(
-        "guessResult",
-        {
-            "player": request.sid,
-            "guess": guess,
-            "correctCount": correct_count,
-        },
-        room=game_id,
+    opponent_secret = (
+        game["player2_secret"]
+        if request.sid == game["player1"]
+        else game["player1_secret"]
     )
 
-    if correct_count == 4:
+    correct_count = count_matches(opponent_secret, guess)
+
+    socketio.emit("guessResult", {
+        "player": request.sid,
+        "guess": guess,
+        "correctCount": correct_count
+    }, room=game_id)
+
+    if guess == opponent_secret:
         game["active"] = False
-        socketio.emit("gameOver", {"winner": request.sid}, room=game_id)
+        socketio.emit("gameOver", {
+            "winner": request.sid
+        }, room=game_id)
         return
 
-    players = game["players"]
+    # Switch turn
     game["current_turn"] = (
-        players[0] if request.sid == players[1] else players[1]
+        game["player2"]
+        if request.sid == game["player1"]
+        else game["player1"]
     )
 
-    socketio.emit(
-        "turnChanged",
-        {"currentTurn": game["current_turn"]},
-        room=game_id,
-    )
+    socketio.emit("turnChanged", {
+        "currentTurn": game["current_turn"]
+    }, room=game_id)
 
-@socketio.on("disconnect")
-def handle_disconnect():
-    global waiting_player
-    if waiting_player == request.sid:
-        waiting_player = None
+@socketio.on("restartGame")
+def restart_game():
+    for g in games:
+        if request.sid in [games[g]["player1"], games[g]["player2"]]:
+            game_id = g
+            break
+
+    game = games[game_id]
+
+    games[game_id] = create_new_game(game["player1"], game["player2"])
+
+    send_secrets(game_id)
 
 if __name__ == "__main__":
     socketio.run(app)
