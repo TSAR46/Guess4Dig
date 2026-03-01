@@ -1,0 +1,96 @@
+from flask import Flask, render_template
+from flask_socketio import SocketIO, join_room, emit
+import random
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app)
+
+waiting_player = None
+games = {}
+
+def generate_secret():
+    digits = []
+    while len(digits) < 4:
+        num = str(random.randint(0, 9))
+        if num not in digits:
+            digits.append(num)
+    return ''.join(digits)
+
+def count_matches(secret, guess):
+    secret_list = list(secret)
+    count = 0
+
+    for digit in guess:
+        if digit in secret_list:
+            count += 1
+            secret_list.remove(digit)
+
+    return count
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@socketio.on('connect')
+def handle_connect():
+    global waiting_player
+
+    if waiting_player is None:
+        waiting_player = request.sid
+        emit('waiting')
+    else:
+        game_id = waiting_player + "#" + request.sid
+        secret = generate_secret()
+
+        games[game_id] = {
+            "secret": secret,
+            "players": [waiting_player, request.sid],
+            "active": True
+        }
+
+        join_room(game_id)
+        socketio.server.enter_room(waiting_player, game_id)
+
+        socketio.emit('startGame', room=game_id)
+        waiting_player = None
+
+@socketio.on('makeGuess')
+def handle_guess(data):
+    guess = data['guess']
+
+    game_id = None
+    for g in games:
+        if request.sid in games[g]["players"]:
+            game_id = g
+            break
+
+    if not game_id:
+        return
+
+    game = games[game_id]
+    if not game["active"]:
+        return
+
+    correct_count = count_matches(game["secret"], guess)
+
+    socketio.emit('guessResult', {
+        "player": request.sid,
+        "guess": guess,
+        "correctCount": correct_count
+    }, room=game_id)
+
+    if correct_count == 4:
+        game["active"] = False
+        socketio.emit('gameOver', {
+            "winner": request.sid
+        }, room=game_id)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    global waiting_player
+    if waiting_player == request.sid:
+        waiting_player = None
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True)
