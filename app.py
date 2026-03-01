@@ -10,7 +10,6 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 waiting_player = None
 games = {}
 
-
 def generate_secret():
     digits = []
     while len(digits) < 4:
@@ -18,7 +17,6 @@ def generate_secret():
         if num not in digits:
             digits.append(num)
     return "".join(digits)
-
 
 def count_matches(secret, guess):
     secret_list = list(secret)
@@ -29,17 +27,13 @@ def count_matches(secret, guess):
             secret_list.remove(digit)
     return count
 
-
 @app.route("/")
 def index():
     return render_template("index.html")
 
-
 @socketio.on("connect")
 def handle_connect():
     global waiting_player
-
-    print("Connected:", request.sid)
 
     if waiting_player is None:
         waiting_player = request.sid
@@ -68,10 +62,7 @@ def handle_connect():
             room=game_id,
         )
 
-        print("Game started:", game_id, "Secret:", secret)
-
         waiting_player = None
-
 
 @socketio.on("makeGuess")
 def handle_guess(data):
@@ -125,15 +116,11 @@ def handle_guess(data):
         room=game_id,
     )
 
-
 @socketio.on("disconnect")
 def handle_disconnect():
     global waiting_player
-    print("Disconnected:", request.sid)
-
     if waiting_player == request.sid:
         waiting_player = None
-
 
 if __name__ == "__main__":
     socketio.run(app)

@@ -1,37 +1,95 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Turn-Based Guess Game</title>
+    <title>Guess4Dig</title>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <style>
-        body { font-family: Arial; margin: 0; height: 100vh; display: flex; flex-direction: column; }
-        h2 { text-align: center; margin-top: 20px; }
-        #status { text-align: center; margin-bottom: 20px; font-weight: bold; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: white;
+        }
 
-        .container { flex: 1; display: flex; }
+        h2 {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 32px;
+        }
+
+        #status {
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+        }
 
         .player {
             flex: 1;
             padding: 40px;
+            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.1);
             text-align: center;
         }
 
         .divider {
-            width: 3px;
-            background: black;
+            width: 2px;
+            background: rgba(255,255,255,0.3);
         }
 
-        input { padding: 10px; font-size: 18px; width: 120px; text-align: center; }
-        button { padding: 10px 20px; margin-left: 10px; cursor: pointer; }
+        input {
+            padding: 12px;
+            font-size: 18px;
+            width: 120px;
+            border-radius: 8px;
+            border: none;
+            text-align: center;
+        }
 
-        .disabled { opacity: 0.4; }
+        button {
+            padding: 12px 20px;
+            margin-left: 10px;
+            border-radius: 8px;
+            border: none;
+            background: #00c6ff;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-        .history { margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        button:hover {
+            background: #0072ff;
+        }
+
+        .history {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .guess {
+            background: rgba(0,0,0,0.3);
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 6px;
+        }
+
+        .disabled {
+            opacity: 0.4;
+        }
     </style>
 </head>
 <body>
 
-<h2>Turn-Based 4 Digit Guess Game</h2>
+<h2>🎯 Guess4Dig</h2>
 <p id="status">Connecting...</p>
 
 <div class="container">
@@ -39,7 +97,7 @@
     <div class="player" id="player1">
         <h3>Player 1</h3>
         <input type="text" id="input1" maxlength="4">
-        <button onclick="sendGuess('input1')">Submit</button>
+        <button onclick="sendGuess('input1')">Guess</button>
         <div class="history" id="history1"></div>
     </div>
 
@@ -48,7 +106,7 @@
     <div class="player" id="player2">
         <h3>Player 2</h3>
         <input type="text" id="input2" maxlength="4">
-        <button onclick="sendGuess('input2')">Submit</button>
+        <button onclick="sendGuess('input2')">Guess</button>
         <div class="history" id="history2"></div>
     </div>
 
@@ -63,25 +121,19 @@
 
     function setTurn(currentTurn) {
         if (socket.id === currentTurn) {
-            status.innerText = "Your Turn";
-            enableMySide(true);
+            status.innerText = "🔥 Your Turn";
+            enableInputs(true);
         } else {
-            status.innerText = "Opponent's Turn";
-            enableMySide(false);
+            status.innerText = "⏳ Opponent's Turn";
+            enableInputs(false);
         }
     }
 
-    function enableMySide(enable) {
+    function enableInputs(enable) {
         const isPlayer1 = socket.id === player1Id;
 
-        const input1 = document.getElementById("input1");
-        const input2 = document.getElementById("input2");
-
-        input1.disabled = !enable || !isPlayer1;
-        input2.disabled = !enable || isPlayer1;
-
-        document.getElementById("player1").classList.toggle("disabled", !isPlayer1 && enable);
-        document.getElementById("player2").classList.toggle("disabled", isPlayer1 && enable);
+        document.getElementById("input1").disabled = !(enable && isPlayer1);
+        document.getElementById("input2").disabled = !(enable && !isPlayer1);
     }
 
     socket.on("waiting", () => {
@@ -95,16 +147,15 @@
     });
 
     socket.on("guessResult", (data) => {
-        const message = `Guessed ${data.guess} → ${data.correctCount} correct`;
+        const div = document.createElement("div");
+        div.className = "guess";
+        div.innerText = `${data.guess} → ${data.correctCount} correct`;
 
-        const div1 = document.createElement("div");
-        div1.innerText = message;
-
-        const div2 = document.createElement("div");
-        div2.innerText = message;
-
-        document.getElementById("history1").appendChild(div1);
-        document.getElementById("history2").appendChild(div2);
+        if (data.player === player1Id) {
+            document.getElementById("history1").appendChild(div);
+        } else {
+            document.getElementById("history2").appendChild(div);
+        }
     });
 
     socket.on("turnChanged", (data) => {
@@ -117,7 +168,7 @@
         } else {
             status.innerText = "😢 You Lose!";
         }
-        enableMySide(false);
+        enableInputs(false);
     });
 
     function sendGuess(inputId) {
