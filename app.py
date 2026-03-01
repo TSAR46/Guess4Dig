@@ -18,12 +18,10 @@ def generate_secret():
     return "".join(digits)
 
 def count_matches(secret, guess):
-    secret_list = list(secret)
     count = 0
-    for digit in guess:
-        if digit in secret_list:
+    for i in range(4):
+        if guess[i] == secret[i]:
             count += 1
-            secret_list.remove(digit)
     return count
 
 @app.route("/")
@@ -149,4 +147,5 @@ def restart_game():
     }, room=game_id)
 
 if __name__ == "__main__":
+
     socketio.run(app)
